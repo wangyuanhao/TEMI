@@ -6,7 +6,7 @@ Created on Wed Nov 11 16:39:19 2020
 """
 
 import numpy as np
-from sklearn.metrics import roc_auc_score, average_precision_score, f1_score, confusion_matrix, balanced_accuracy_score
+from sklearn.metrics import roc_auc_score, f1_score, confusion_matrix, balanced_accuracy_score
 import torch
 import pandas as pd
 import time 
@@ -62,13 +62,6 @@ def get_prec_sen_spec(y_true, y_pred):
 
 
 def full_evaluation(y_true, y_probs):
-    # y_pred = np.argmax(y_probs, axis=1)
-    # acc = np.sum(y_pred ==y_true) / len(y_true)
-    # f1_score_ = f1_score(y_true, y_pred, average="weighted")
-    # # auc_ = auc(y_true, y_probs)
-    # low_auc, mid_auc, up_auc = bootstrap(y_true, y_probs, 1000, 0.95)
-    # auc_ = (low_auc, mid_auc, up_auc)
-    # return acc, f1_score_, auc_
 
     result = bootstrap_ap(y_true, y_probs, 1000, 0.95)
     return result
@@ -159,15 +152,7 @@ def bootstrap(target, score, B, c):
 
 
 def bootstrap_ap(target, score, B, c):
-    """
-    计算bootstrap置信区间
-    :param data: array 保存样本数据
-    :param B: 抽样次数 通常B>=1000
-    :param c: 置信水平
-    :param func: 样本估计量
-    :return: bootstrap置信区间上下限
-	auc = bootstrap(target, score, 500, 0.95)
-    """
+
     n = len(target)
     sample_result_arr_acc = []
     sample_result_arr_f1 = []
@@ -204,15 +189,6 @@ def bootstrap_ap(target, score, B, c):
     auc_higher = ap_sample_arr_auc_sorted[k2]
     auc_mid = ap_sample_arr_auc_sorted[int(count/2)]
 
-    ap_sample_arr_f1_sorted = sorted(sample_result_arr_f1)
-    f1_lower = ap_sample_arr_f1_sorted[k1]
-    f1_higher = ap_sample_arr_f1_sorted[k2]
-    f1_mid = ap_sample_arr_f1_sorted[int(count/2)]
+   
 
-
-    ap_sample_arr_acc_sorted = sorted(sample_result_arr_acc)
-    acc_lower = ap_sample_arr_acc_sorted[k1]
-    acc_higher = ap_sample_arr_acc_sorted[k2]
-    acc_mid = ap_sample_arr_acc_sorted[int(count/2)]
-
-    return tuple([acc_lower, acc_mid, acc_higher, f1_lower, f1_mid, f1_higher, auc_lower, auc_mid, auc_higher])
+    return tuple([auc_lower, auc_mid, auc_higher])

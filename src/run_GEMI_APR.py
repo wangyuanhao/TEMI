@@ -190,17 +190,7 @@ def train(predict_model, embed_encoder, embed_decoder, aligner, train_iter, test
         eval_train = eval_model(predict_model, train_iter, device)
         eval_test = eval_model(predict_model, test_iter, device)
 
-        if epoch >= num_epochs - last_epoch:
-            test_last_epoch[epoch_count, 0] = eval_test[0][1]
-            test_last_epoch[epoch_count, 1] = eval_test[0][0]
-            test_last_epoch[epoch_count, 2] = eval_test[0][2]
-            test_last_epoch[epoch_count, 3] = eval_test[0][4]
-            test_last_epoch[epoch_count, 4] = eval_test[0][3]
-            test_last_epoch[epoch_count, 5] = eval_test[0][5]
-            test_last_epoch[epoch_count, 6] = eval_test[0][7]
-            test_last_epoch[epoch_count, 7] = eval_test[0][6]
-            test_last_epoch[epoch_count, 8] = eval_test[0][8]
-            epoch_count = epoch_count + 1
+
 
         if args.savedisk:
             np.save(args.embed_path + "train_embed%d.npy" % (epoch + 1), eval_train[2])
@@ -210,23 +200,16 @@ def train(predict_model, embed_encoder, embed_decoder, aligner, train_iter, test
         logger.info("Epoch[%d/%d], loss:%.4f, CE loss:%.4f, SIM loss:%.4f, REC loss: %.4f, PCON loss: %.4f, ECON loss: %.4f" 
                     % (epoch+1, num_epochs, loss_ / batch_count, ce_loss_ / batch_count, sim_loss_ / batch_count, rec_loss_ / batch_count, 
                        pct_loss_ / batch_count, ect_loss_ / batch_count))
-        logger.info("Epoch[%d/%d], train B-acc: %.4f(%.4f-%.4f), test B-acc: %.4f(%.4f-%.4f)"
-                    % (epoch+1, num_epochs, eval_train[0][1], eval_train[0][0], eval_train[0][2],
-                       eval_test[0][1], eval_test[0][0], eval_test[0][2]))
-        logger.info("Epoch[%d/%d], train weighted-f1: %.4f(%.4f-%.4f), test weighted-f1: %.4f(%.4f-%.4f)"
-                    % (epoch+1, num_epochs, eval_train[0][4],  eval_train[0][3],  eval_train[0][5], 
-                       eval_test[0][4], eval_test[0][3], eval_test[0][5]))
         logger.info("Epoch[%d/%d], train AUC: %.4f(%.4f-%.4f), test AUC: %.4f(%.4f-%.4f)"
-                    % (epoch+1, num_epochs, eval_train[0][7], eval_train[0][6], eval_train[0][8], 
-                       eval_test[0][7], eval_test[0][6], eval_test[0][8])) 
+                    % (epoch+1, num_epochs, eval_train[0][0], eval_train[0][1], eval_train[0][2], 
+                       eval_test[0][0], eval_test[0][1], eval_test[0][2])) 
         
         """tensorboard"""
         writer.add_scalars("LOSS", {"ALL": loss_ / batch_count, "CE": ce_loss_ / batch_count, 
                                     "SIM": sim_loss_ / batch_count, "REC": rec_loss_ / batch_count, 
                                     "PCON": pct_loss_ / batch_count, "ECON": ect_loss_ / batch_count}, epoch + 1)
-        writer.add_scalars("ACC", {"B-ACC_train": eval_train[0][1], "B-ACC_test": eval_test[0][1]}, epoch + 1)
-        writer.add_scalars("MACRO-F1", {"F1_train": eval_train[0][4], "F1_test": eval_test[0][4]}, epoch + 1)
-        writer.add_scalars("AUC", {"AUC_train": eval_train[0][7], "AUC_test": eval_test[0][7]}, epoch + 1)
+
+        writer.add_scalars("AUC", {"AUC_train": eval_train[0][1], "AUC_test": eval_test[0][1]}, epoch + 1)
         
 
         # if eval_val[4] > best_val_f1:
@@ -296,7 +279,7 @@ def train(predict_model, embed_encoder, embed_decoder, aligner, train_iter, test
             crr_test_erecord.to_csv("{}/crr_test_erecord_epoch_{:d}.csv".format(args.record_path, epoch + 1),
                                 header=True, index=False)   
 
-    return test_last_epoch
+
 
 def main(args, CLASSES, model, model_architecture, time_tab):
     
@@ -384,10 +367,10 @@ def main(args, CLASSES, model, model_architecture, time_tab):
     
 
     
-    test_last_epoch = train(predict_model, embed_encoder, embed_decoder, aligner, train_iter, test_iter, CLASSES, CE_loss, SIM_loss, REC_loss, optimizer, 
-                            scheduler, train_args, args.last_epoch)
+    train(predict_model, embed_encoder, embed_decoder, aligner, train_iter, test_iter, CLASSES, CE_loss, 
+          SIM_loss, REC_loss, optimizer, scheduler, train_args, args.last_epoch)
 
-    return test_last_epoch.mean(axis=0)
+
 
 
 def parse_args():
@@ -509,8 +492,8 @@ if __name__ == "__main__":
         
     model = [predict_model, embed_encoder, embed_decoder, aligner]
 
-    test_last_epoch_mean = main(args, CLASSES, model, model_architecture, time_tab)
-    print(test_last_epoch_mean)
+    main(args, CLASSES, model, model_architecture, time_tab)
+
 
     time.sleep(30)
     process.kill()
