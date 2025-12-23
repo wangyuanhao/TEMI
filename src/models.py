@@ -17,9 +17,7 @@ class Aligner(nn.Module):
     def forward(self, h_G, h_W):
         h = torch.mul(self.fc1(h_G), self.fc2(h_W))
         return h
-    
-    
-    
+
 class ProjectionHead(nn.ModuleDict):
     def __init__(self, inputs, outputs):
         super(ProjectionHead, self).__init__()
@@ -302,7 +300,6 @@ class MaskGeneEncoderDecoderBNTanhCon2Layer(nn.Module):
 
         return layer3, player3, layer6
     
-    
 
 class MaskGeneEncoderBNTanhCon2Layer(nn.Module):
     def __init__(self, params):
@@ -334,7 +331,8 @@ class MaskGeneEncoderBNTanhCon2Layer(nn.Module):
         player3 = self.projection_head(layer3)
 
         return layer3, player3
-    
+
+
 class MaskGeneDecoderBNTanhCon2Layer(nn.Module):
     def __init__(self, params):
         super(MaskGeneDecoderBNTanhCon2Layer, self).__init__()
@@ -357,7 +355,8 @@ class MaskGeneDecoderBNTanhCon2Layer(nn.Module):
 
 
         return layer6
-       
+    
+
 class MaskGeneEncoderDecoderBNTanhCon(nn.Module):
     def __init__(self, params):
         super(MaskGeneEncoderDecoderBNTanhCon, self).__init__()
@@ -494,18 +493,21 @@ class DotProductAttention(nn.Module):
         super(DotProductAttention, self).__init__()
         self.D = D 
         self.H = H 
-        scaling_weight = []
 
-        for i in range(H):
-            weight = nn.Parameter(torch.Tensor(D))
-            torch.nn.init.normal_(weight)
-            scaling_weight.append(weight)  
+        self.scaling_weight = nn.ParameterList([
+            nn.Parameter(torch.randn(D))
+            for _ in range(H)
+        ])
+
+        self.in_place_scaling_weight = nn.Parameter(
+            torch.full((D,), 1.0 / D)
+        )
 
         in_place_scaling_weight = nn.Parameter(torch.Tensor(D))
         # torch.nn.init.uniform_(in_place_scaling_weight, -1, 1)
         torch.nn.init.constant_(in_place_scaling_weight, 1/D)
         self.in_place_scaling_weight = in_place_scaling_weight
-        self.scaling_weight = scaling_weight
+        
 
     def forward(self, X):
         atten_weight = []
@@ -565,7 +567,52 @@ class ConvAttenBlock(nn.Module):
 
         return z___
 
+class ConvAttenFusion_(nn.ModuleDict):
+    """[100, 512, 16, 8]"""
+    """[8, 100, 8, 4]"""
+    # def __init__(self, in_chan, D, out_chan, heads, dropout, pinputs, poutputs):
+    def __init__(self, params, class_num):
+        in_chan = params["in_chans"]
+        D = params["dims"]
+        out_chan = params["out_chans"]
+        heads = params["heads"]
+        dropout = params["dropout"]
+        # pinputs = params["pinputs"]
+        # poutputs = params["poutputs"]
+        super(ConvAttenFusion_, self).__init__()
+        layers = len(in_chan)
+        for i in range(layers):
+            self.add_module("ConvAtten%d" % i, ConvAttenBlock(in_chan[i], D[i],
+                                                              out_chan[i], heads[i], dropout[i]))
 
+        flatten_dim = heads[-1] * heads[-2]
+        self.add_module("Classifier", OneLayerClassifier(flatten_dim, class_num))
+        # self.add_module("Classifier", TwoLayerClassifier(flatten_dim, class_num, dropout[-1]))
+        # self.add_module("Projection", ProjectionHead(pinputs, poutputs))
+
+    def forward(self, X):
+        z = None
+        # projection = None
+        x__ = None
+        x_ = deepcopy(X)
+        atten_weight = None
+        for name, layer in self.items():
+            if name == "Classifier":
+                # x_  = F.relu(x_).detach() + F.gelu(x_) - F.gelu(x_).detach()
+                x__ = x_.view(x_.shape[0], -1)
+                z = layer(x__)
+            # elif name == "Projection":
+            #     px__ = x_.view(x_.shape[0], -1)
+            #     px__M = torch.cat((px__, M), dim=1)
+            #     projection = layer(px__M)
+            else:
+                x_ = layer(x_)
+            if name == "ConvAtten0":
+                atten_weight = x_
+
+        # return projection, px__, z
+        return x__, z, atten_weight
+    
 class ConvAttenFusion(nn.ModuleDict):
     """[100, 512, 16, 8]"""
     """[8, 100, 8, 4]"""
@@ -594,6 +641,7 @@ class ConvAttenFusion(nn.ModuleDict):
         # projection = None
         x__ = None
         x_ = deepcopy(X)
+        # atten_weight = None
         for name, layer in self.items():
             if name == "Classifier":
                 # x_  = F.relu(x_).detach() + F.gelu(x_) - F.gelu(x_).detach()
@@ -605,6 +653,8 @@ class ConvAttenFusion(nn.ModuleDict):
             #     projection = layer(px__M)
             else:
                 x_ = layer(x_)
+            # if name == "ConvAtten0":
+            #     atten_weight = x_
 
         # return projection, px__, z
         return x__, z
@@ -634,14 +684,14 @@ class ConvAttenFusion(nn.ModuleDict):
 #         return score
 
 class MILAttenBlock(nn.Module):
-    def __init__(self, D, out_chan, head, dropout):
+    def __init__(self, D, L, dropout):
         super(MILAttenBlock, self).__init__()
-        self.D, self.L = D, out_chan
+        self.D, self.L = D, L
         self.attention = nn.Sequential(
             nn.Linear(self.D, self.L),
             nn.Dropout(dropout),
             nn.Tanh(),
-            nn.Linear(self.L, head)
+            nn.Linear(self.L, 1)
         )
 
     def forward(self, X):
@@ -684,42 +734,26 @@ class GatedAttenBlock(nn.Module):
 
 class MILAttenFusion(nn.ModuleDict):
 
-    def __init__(self, params, class_num):
-        ##
-        # out_chan = [16, 8]
-        # D = [512, 512]
-        # heads = [8, 4]
-        # dropout = [0.8, 0.4]
-        ##
-
+    def __init__(self, D, L, CD, pinputs, poutputs, dropout):
         super(MILAttenFusion, self).__init__()
-        out_chan = params["out_chans"]
-        D = params["dims"]
-        dropout = params["dropout"]
-        heads = params["heads"]
-
-        self.mil_atten_layer1 = MILAttenBlock(D[0], out_chan[0], heads[0], dropout[0])
-        self.mil_atten_layer2 = MILAttenBlock(D[1], out_chan[1], heads[1], dropout[1])
-
-        self.flatten_dim = heads[-1]*D[-1]
-        self.linear = nn.Linear(self.flatten_dim, 32)
-        self.classifier = nn.Linear(32, class_num)
-
+        self.add_module("Attention", MILAttenBlock(D, L, dropout[0]))
+        self.add_module("Classifier", OneLayerClassifier(D))
+        # self.add_module("Classifier", TwoLayerClassifier(D, CD, dropout[1]))
+        self.add_module("Projection", ProjectionHead(pinputs, poutputs))
 
     def forward(self, X):
         z = None
+        projection = None
         x_ = deepcopy(X)
+        for name, layer in self.items():
+            if name == "Classifier":
+                z = layer(x_)
+            elif name == "Projection":
+                projection = layer(x_)
+            else:
+                x_ = layer(x_)
 
-        mil_atten_layer1_x_ = self.mil_atten_layer1(x_)
-        mil_atten_layer1_x = mil_atten_layer1_x_.transpose(1, 2)
-
-        mil_atten_layer2_x_ = self.mil_atten_layer2(mil_atten_layer1_x)
-        mil_atten_layer2_x = mil_atten_layer2_x_.view(mil_atten_layer2_x_.shape[0], -1)
-        x__ = self.linear(mil_atten_layer2_x)
-
-        z = self.classifier(x__)
-
-        return x__, z
+        return projection, x_, z
 
 
 class GMILAttenFusion(nn.ModuleDict):
@@ -747,38 +781,27 @@ class GMILAttenFusion(nn.ModuleDict):
 
 
 class ConvFusion(nn.ModuleDict):
-    def __init__(self, params, class_num):
-        ## 
-        # in_chan = [200, 16]
-        # out_chan = [16, 8]
-        # D = [512, 200]
-        # dropout = [0.8, 0.4]
-        ## 
+    def __init__(self, in_chan, D, out_chan, CD, GD, dropouts):
         super(ConvFusion, self).__init__()
-        in_chan = params["in_chans"]
-        out_chan = params["out_chans"]
-        D = params["dims"]
-        dropout = params["dropout"]
-        self.conv1d_layer1 = ConvBlock(in_chan[0], D[0], out_chan[0], dropout[0])
-        self.conv1d_layer2 = ConvBlock(in_chan[1], D[1], out_chan[1], dropout[1])
-        flatten_dim = out_chan[0] * out_chan[1]
-        self.classifier = OneLayerClassifier(flatten_dim, class_num)
-        self.projector = nn.Linear(flatten_dim, 32)
+        self.add_module("Conv1D", ConvBlock(in_chan, D, out_chan, dropouts[0]))
+        self.add_module("Classifier", TwoLayerClassifier(in_chan, CD, dropouts[1]))
+        self.add_module("Projection", ProjectionHead([in_chan], [GD]))
 
     def forward(self, X):
         z = None
-        x__ = None
+        projection = None
         x_ = deepcopy(X)
-        conv1d_layer1_x_ = self.conv1d_layer1(x_)
-        conv1d_layer1_x = conv1d_layer1_x_.transpose(1, 2)
-        conv1d_layer2_x_ = self.conv1d_layer2(conv1d_layer1_x)
-        x__ = conv1d_layer2_x_.view(conv1d_layer2_x_.shape[0], -1)
-        x___ = self.projector(x__)
-        z = self.classifier(x__)
+        for name, layer in self.items():
+            if name == "Classifier":
+                x_ = x_.squeeze()
+                z = layer(x_)
+            elif name == "Projection":
+                x_ = x_.squeeze()
+                projection = layer(x_)
+            else:
+                x_ = layer(x_)
 
-        return x___, z
-
-
+        return projection, x_, z
 
 
 
