@@ -1,4 +1,4 @@
-## Overview of TEMI (<u>***T***</u>ranscriptomic <u>***E***</u>xpression from ***<u>M</u>***orphological ***<u>I</u>***mages)
+## Overview of TEMI (<u>***T***</u>ranscriptomic <u>***E***</u>xpression from <u>***M***</u>orphological <u>***I***</u>mages)
 
 ![overview](./overview.png)
 
@@ -15,15 +15,15 @@ Note that we ran our experiments with python 3.7.3.
 
 #### Command
 
-* `temi-apr`: Run TEMI w/ APR (<u>***A***</u>lignment by ***<u>P</u>***artial ***<u>R</u>***econstruction)
-* `temi-aod`: Run TEMI w/AOD (***<u>A</u>***lignment by ***<u>O</u>***rthogonal ***<u>D</u>***ecomposition)
+* `temi-apr`: Run TEMI w/ APR (<u>***A***</u>lignment by <u>***P***</u>artial <u>***R***</u>econstruction)
+* `temi-aod`: Run TEMI w/AOD (<u>***A***</u>lignment by <u>***o***</u>rthogonal <u>***D***</u>ecomposition)
 * `temi-aodpr`: Run TEMI w/ AOD+APR.
 
 #### Key arguments 
 
 * `--proj`: project(chosen from CRC-DX/STAD-DX/GBM-DX)
-* `--plr`:  learning rate of PFN (***<u>P</u>***atch ***<u>F</u>***usion ***N***etwork)
-* `--elr`: learning rate of  MAT (***<u>M</u>***asked ***<u>T</u>***ranscriptomic ***<u>A</u>***utoencoder)
+* `--plr`:  learning rate of PFN (<u>***P***</u>atch <u>***F***</u>usion <u>***N***</u>etwork)
+* `--elr`: learning rate of  MAT (<u>***M***</u>asked <u>***T***</u>ranscriptomic <u>***A***</u>utoencoder)
 * `--transcriptomic_root`: the parent folder of the `transcriptomic` direcotry
 * `--wsi_root`: the parent folder of the `postdata` directory
 
