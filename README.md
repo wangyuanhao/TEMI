@@ -69,7 +69,7 @@ We also provide a MATLAB toolbox `TileSlideToolbox` for tiling slides into patch
 |	  |-- sampleID_somthing.svs
 ```
 
-in `run_openslide_tile_WSI.m`. The size of patches is indicated by `tileSize`.
+in the `run_openslide_tile_WSI.m`. The size of patches is indicated by `tileSize`.
 
 The result of patches of slides are stored in the `outDir` with structures
 
@@ -87,4 +87,4 @@ and
 |		|-- sampleID_x_y.png
 ```
 
-The non-informative regions are filtered by the Otsu’s method and stored in the `filter` directory. The location of a patch in a slide is indicated by the suffix of its filename (x, y), and slides can be reconstructed from patches using `reconstructWSI.m`.
+The non-informative regions are filtered by the Otsu’s method and stored in the `filter` directory. The location of a patch in a slide is indicated by the suffix of its filename (x, y), and slides can be reconstructed from patches using the `reconstructWSI.m`.
