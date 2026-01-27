@@ -76,7 +76,7 @@ The result of patches of slides are stored in the `outDir` with structures
 ```
 /outDir/valid
 |-- sampleID/
-|		|-- sampleID_x_y.svs
+|		|-- sampleID_x_y.png
 ```
 
 and 
